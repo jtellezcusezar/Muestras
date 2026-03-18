@@ -406,10 +406,16 @@ with col_b:
     ))
     fig3.add_hline(y=fc_nominal, line_dash="dot", line_color="#4a90d9",
                    annotation_text=f"f'c = {fc_nominal:.0f}", annotation_font_color="#4a90d9")
-    fig3.update_layout(**PLOTLY_LAYOUT, height=380,
-        xaxis=dict(tickvals=[14, 28, 56], title="Edad (días)", gridcolor="#1e2640"),
-        yaxis=dict(title="Promedio Resistencia (kg/cm²)", gridcolor="#1e2640"),
+    fig3.update_layout(
+        paper_bgcolor="#161b27",
+        plot_bgcolor="#161b27",
+        font=dict(family="DM Sans", color="#e8eaf0", size=12),
+        margin=dict(t=50, b=40, l=50, r=20),
+        height=380,
+        legend=dict(bgcolor="rgba(26,32,53,0.9)", bordercolor="#2a3a5c", borderwidth=1, font=dict(size=11))
     )
+    fig3.update_xaxes(tickvals=[14, 28, 56], title_text="Edad (días)", gridcolor="#1e2640", zerolinecolor="#2a3a5c")
+    fig3.update_yaxes(title_text="Promedio Resistencia (kg/cm²)", gridcolor="#1e2640", zerolinecolor="#2a3a5c")
     st.plotly_chart(fig3, use_container_width=True)
 
 # ─── TABLA DETALLE ───────────────────────────────────────────────────────────
@@ -417,23 +423,29 @@ st.markdown('<div class="section-title">Detalle por Muestra</div>', unsafe_allow
 
 tabla_rows = []
 for cil in sorted(df["Cilindro N°"].dropna().unique()):
-    df_cil = df[df["Cilindro N°"] == cil]
-    row = {"N°": int(cil)}
-    loc = df_cil["Localización"].dropna().iloc[0] if not df_cil["Localización"].dropna().empty else ""
-    row["Localización"] = loc
-    fecha = df_cil["Toma"].dropna().iloc[0] if "Toma" in df_cil.columns and not df_cil["Toma"].dropna().empty else None
-    row["Fecha Toma"] = fecha.strftime("%Y-%m-%d") if fecha and not pd.isna(fecha) else ""
-    for edad in [14, 28, 56]:
-        vals = df_cil[df_cil["Edad Estandar"] == edad][res_col].dropna()
-        row[f"Prom {edad}d (kg/cm²)"] = round(vals.mean(), 1) if not vals.empty else None
-    prom28_cil = row.get("Prom 28d (kg/cm²)")
-    row["% f'c"] = f"{prom28_cil / fc_nominal * 100:.1f}%" if prom28_cil else None
-    row["NSR-10"] = "✅ Cumple" if prom28_cil and prom28_cil >= fcr else ("❌ No Cumple" if prom28_cil else "—")
-    tabla_rows.append(row)
+    try:
+        df_cil = df[df["Cilindro N°"] == cil]
+        row = {"N°": int(cil)}
+        loc = df_cil["Localización"].dropna()
+        row["Localización"] = loc.iloc[0] if not loc.empty else ""
+        if "Toma" in df_cil.columns:
+            fechas = df_cil["Toma"].dropna()
+            fecha = fechas.iloc[0] if not fechas.empty else None
+            row["Fecha Toma"] = fecha.strftime("%Y-%m-%d") if fecha is not None and not pd.isna(fecha) else ""
+        else:
+            row["Fecha Toma"] = ""
+        for edad in [14, 28, 56]:
+            vals = df_cil[df_cil["Edad Estandar"] == edad][res_col].dropna()
+            row[f"Prom {edad}d (kg/cm²)"] = round(float(vals.mean()), 1) if not vals.empty else None
+        prom28_cil = row.get("Prom 28d (kg/cm²)")
+        row["% f'c"] = f"{prom28_cil / fc_nominal * 100:.1f}%" if prom28_cil else None
+        row["NSR-10"] = "✅ Cumple" if prom28_cil and prom28_cil >= fcr else ("❌ No Cumple" if prom28_cil else "—")
+        tabla_rows.append(row)
+    except Exception:
+        continue
 
 df_tabla = pd.DataFrame(tabla_rows)
-st.dataframe(df_tabla, use_container_width=True, hide_index=True,
-             column_config={"NSR-10": st.column_config.TextColumn(width="medium")})
+st.dataframe(df_tabla, use_container_width=True, hide_index=True)
 
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("---")
