@@ -22,75 +22,78 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
-.stApp { background-color: #0f1117; color: #e8eaf0; }
+.stApp { background-color: #f7f9fc; color: #1a2035; }
 
 section[data-testid="stSidebar"] {
-    background: #161b27;
-    border-right: 1px solid #2a3045;
+    background: #ffffff;
+    border-right: 1px solid #e0e6f0;
 }
 
 .metric-card {
-    background: linear-gradient(135deg, #1a2035 0%, #1e2640 100%);
-    border: 1px solid #2a3a5c;
+    background: #ffffff;
+    border: 1px solid #e0e6f0;
     border-radius: 12px;
     padding: 16px 20px;
     text-align: center;
     transition: transform 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
-.metric-card:hover { transform: translateY(-2px); }
+.metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
 .metric-label {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6b7db3;
+    color: #8a9ab5;
     margin-bottom: 6px;
 }
 .metric-value {
     font-size: 26px;
     font-weight: 700;
-    color: #e8eaf0;
+    color: #1a2035;
     font-family: 'DM Mono', monospace;
     line-height: 1.1;
 }
 .metric-sub {
     font-size: 12px;
-    color: #4a90d9;
+    color: #2563eb;
     margin-top: 4px;
     font-weight: 500;
 }
-.cumple { color: #2ecc71 !important; }
-.nocumple { color: #e74c3c !important; }
-.excelente { color: #2ecc71 !important; }
-.muybueno { color: #27ae60 !important; }
-.bueno { color: #f1c40f !important; }
-.aceptable { color: #e67e22 !important; }
-.pobre { color: #e74c3c !important; }
+.cumple { color: #16a34a !important; }
+.nocumple { color: #dc2626 !important; }
+.excelente { color: #16a34a !important; }
+.muybueno { color: #15803d !important; }
+.bueno { color: #ca8a04 !important; }
+.aceptable { color: #ea580c !important; }
+.pobre { color: #dc2626 !important; }
 
 .section-title {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #4a90d9;
+    color: #2563eb;
     margin: 24px 0 12px 0;
     padding-bottom: 6px;
-    border-bottom: 1px solid #2a3a5c;
+    border-bottom: 2px solid #e0e6f0;
 }
 
 .upload-area {
-    background: linear-gradient(135deg, #1a2035 0%, #1e2640 100%);
-    border: 2px dashed #2a3a5c;
+    background: #ffffff;
+    border: 2px dashed #c7d2e8;
     border-radius: 16px;
     padding: 40px;
     text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 div[data-testid="stPlotlyChart"] {
-    background: #161b27;
+    background: #ffffff;
     border-radius: 12px;
-    border: 1px solid #2a3045;
+    border: 1px solid #e0e6f0;
     padding: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .stDataFrame { border-radius: 8px; overflow: hidden; }
@@ -111,18 +114,18 @@ CURVE_COLORS = {
     "Excelente (Ds=30)":  "#2ecc71",
 }
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor="#161b27",
-    plot_bgcolor="#161b27",
-    font=dict(family="DM Sans", color="#e8eaf0", size=12),
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#f7f9fc",
+    font=dict(family="DM Sans", color="#1a2035", size=12),
     margin=dict(t=50, b=40, l=50, r=20),
     legend=dict(
-        bgcolor="rgba(26,32,53,0.9)",
-        bordercolor="#2a3a5c",
+        bgcolor="rgba(255,255,255,0.95)",
+        bordercolor="#e0e6f0",
         borderwidth=1,
         font=dict(size=11)
     ),
-    xaxis=dict(gridcolor="#1e2640", zerolinecolor="#2a3a5c"),
-    yaxis=dict(gridcolor="#1e2640", zerolinecolor="#2a3a5c"),
+    xaxis=dict(gridcolor="#e8edf5", zerolinecolor="#c7d2e8"),
+    yaxis=dict(gridcolor="#e8edf5", zerolinecolor="#c7d2e8"),
 )
 
 def estandarizar_edad(edad):
@@ -233,9 +236,9 @@ with st.sidebar:
 if not archivo:
     st.markdown("""
     <div class="upload-area">
-        <h2 style="color:#4a90d9; margin-bottom:8px;">🏗️ Control de Resistencia</h2>
-        <p style="color:#6b7db3; font-size:15px;">Carga tu archivo Excel con los datos de ensayos para comenzar</p>
-        <p style="color:#4a5568; font-size:13px; margin-top:16px;">
+        <h2 style="color:#2563eb; margin-bottom:8px;">🏗️ Control de Resistencia</h2>
+        <p style="color:#64748b; font-size:15px;">Carga tu archivo Excel con los datos de ensayos para comenzar</p>
+        <p style="color:#94a3b8; font-size:13px; margin-top:16px;">
             Columnas requeridas: Proyecto · OT · Cilindro N° · Tipo de mezcla · Localización<br>
             Toma · Edad (días) · Resistencia (kg/cm²) · Resistencia nominal (MPa)
         </p>
@@ -245,7 +248,7 @@ if not archivo:
 
 res_col    = get_res_col(df)
 nom_col    = get_nominal_col(df)
-fc_nominal = df[nom_col].dropna().iloc[0] * 10.197 if not df[nom_col].dropna().empty else 125
+fc_nominal = df[nom_col].dropna().iloc[0] * 10 if not df[nom_col].dropna().empty else 125
 
 df28 = df[df["Edad Estandar"] == 28][res_col].dropna()
 prom28 = df28.mean()
@@ -345,27 +348,27 @@ with col_a:
         ), secondary_y=True)
 
     fig2.update_layout(
-        paper_bgcolor="#161b27",
-        plot_bgcolor="#161b27",
-        font=dict(family="DM Sans", color="#e8eaf0", size=12),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f7f9fc",
+        font=dict(family="DM Sans", color="#1a2035", size=12),
         margin=dict(t=50, b=80, l=50, r=20),
         height=380,
         xaxis_title="x relativo (kg/cm²)",
         legend=dict(
             orientation="h", y=-0.35, font=dict(size=10),
-            bgcolor="rgba(26,32,53,0.9)",
-            bordercolor="#2a3a5c", borderwidth=1
+            bgcolor="rgba(255,255,255,0.95)",
+            bordercolor="#e0e6f0", borderwidth=1
         )
     )
     fig2.update_yaxes(
-        title_text="Frecuencia", gridcolor="#1e2640",
-        zerolinecolor="#2a3a5c", secondary_y=False
+        title_text="Frecuencia", gridcolor="#e8edf5",
+        zerolinecolor="#c7d2e8", secondary_y=False
     )
     fig2.update_yaxes(
-        title_text="Densidad", gridcolor="#1e2640",
-        zerolinecolor="#2a3a5c", secondary_y=True
+        title_text="Densidad", gridcolor="#e8edf5",
+        zerolinecolor="#c7d2e8", secondary_y=True
     )
-    fig2.update_xaxes(gridcolor="#1e2640", zerolinecolor="#2a3a5c")
+    fig2.update_xaxes(gridcolor="#e8edf5", zerolinecolor="#c7d2e8")
     st.plotly_chart(fig2, use_container_width=True)
 
 # REGRESIÓN LOGARÍTMICA
@@ -407,15 +410,15 @@ with col_b:
     fig3.add_hline(y=fc_nominal, line_dash="dot", line_color="#4a90d9",
                    annotation_text=f"f'c = {fc_nominal:.0f}", annotation_font_color="#4a90d9")
     fig3.update_layout(
-        paper_bgcolor="#161b27",
-        plot_bgcolor="#161b27",
-        font=dict(family="DM Sans", color="#e8eaf0", size=12),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f7f9fc",
+        font=dict(family="DM Sans", color="#1a2035", size=12),
         margin=dict(t=50, b=40, l=50, r=20),
         height=380,
         legend=dict(bgcolor="rgba(26,32,53,0.9)", bordercolor="#2a3a5c", borderwidth=1, font=dict(size=11))
     )
-    fig3.update_xaxes(tickvals=[14, 28, 56], title_text="Edad (días)", gridcolor="#1e2640", zerolinecolor="#2a3a5c")
-    fig3.update_yaxes(title_text="Promedio Resistencia (kg/cm²)", gridcolor="#1e2640", zerolinecolor="#2a3a5c")
+    fig3.update_xaxes(tickvals=[14, 28, 56], title_text="Edad (días)", gridcolor="#e8edf5", zerolinecolor="#c7d2e8")
+    fig3.update_yaxes(title_text="Promedio Resistencia (kg/cm²)", gridcolor="#e8edf5", zerolinecolor="#c7d2e8")
     st.plotly_chart(fig3, use_container_width=True)
 
 # ─── TABLA DETALLE ───────────────────────────────────────────────────────────
