@@ -259,6 +259,9 @@ fcr1  = fc_nominal + 1.34 * ds
 fcr2  = fc_nominal + 2.33 * ds - 35
 fcr   = max(fcr1, fcr2) if fc_nominal <= 350 else max(fcr1, 0.9 * fc_nominal + 2.33 * ds)
 cumple = prom28 >= fcr
+# Umbral individual NSR-10 (criterio por muestra, celda P27 del Excel)
+umbral_nsr = fc_nominal - 35 if fc_nominal <= 350 else fc_nominal * 0.9
+n_no_cumple = 0  # se calcula en la tabla
 cal_cv, cls_cv = calidad_cv(cv)
 cal_ds, cls_ds = calidad_ds(ds)
 
@@ -442,12 +445,29 @@ for cil in sorted(df["Cilindro N°"].dropna().unique()):
             row[f"Prom {edad}d (kg/cm²)"] = round(float(vals.mean()), 1) if not vals.empty else None
         prom28_cil = row.get("Prom 28d (kg/cm²)")
         row["% f'c"] = f"{prom28_cil / fc_nominal * 100:.1f}%" if prom28_cil else None
-        row["NSR-10"] = "✅ Cumple" if prom28_cil and prom28_cil >= fcr else ("❌ No Cumple" if prom28_cil else "—")
+        # Criterio individual NSR-10: promedio muestra > umbral (f'c-35 o f'c*0.9)
+        if prom28_cil:
+            row["NSR-10"] = "✅ Cumple" if prom28_cil > umbral_nsr else "❌ No Cumple"
+            if prom28_cil <= umbral_nsr:
+                n_no_cumple += 1
+        else:
+            row["NSR-10"] = "—"
         tabla_rows.append(row)
     except Exception:
         continue
 
 df_tabla = pd.DataFrame(tabla_rows)
+
+# Resumen de cumplimiento
+total_con_28 = sum(1 for r in tabla_rows if r.get("Prom 28d (kg/cm²)"))
+col_res1, col_res2, col_res3 = st.columns(3)
+col_res1.metric("Umbral individual NSR-10", f"{umbral_nsr:.0f} kg/cm²",
+    delta=f"f'c {'- 35' if fc_nominal <= 350 else '× 0.9'} = {umbral_nsr:.0f}")
+col_res2.metric("Muestras que No Cumplen", str(n_no_cumple),
+    delta=f"de {total_con_28} con datos a 28d", delta_color="inverse")
+col_res3.metric("% Cumplimiento", 
+    f"{(total_con_28 - n_no_cumple) / total_con_28 * 100:.1f}%" if total_con_28 else "—")
+
 st.dataframe(df_tabla, use_container_width=True, hide_index=True)
 
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
