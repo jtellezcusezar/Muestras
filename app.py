@@ -14,6 +14,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Ocultar sidebar completamente
+st.markdown("""
+<style>
+[data-testid="collapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # ─── THEME DETECTION ────────────────────────────────────────────────────────
 is_dark = st.get_option("theme.base") == "dark"
 
@@ -51,7 +59,6 @@ st.markdown(f"""
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; }}
 .stApp {{ background-color: {BG}; color: {TEXT}; }}
-section[data-testid="stSidebar"] {{ background: {BG2}; border-right: 1px solid {BORDER}; }}
 .metric-card {{
     background: {BG2}; border: 1px solid {BORDER}; border-radius: 12px;
     padding: 16px 20px; text-align: center;
@@ -88,8 +95,9 @@ section[data-testid="stSidebar"] {{ background: {BG2}; border-right: 1px solid {
 .upload-area {{
     background: {BG2}; border: 2px dashed {BORDER};
     border-radius: 16px; padding: 48px 40px; text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); max-width: 600px; margin: 80px auto;
 }}
+.upload-icon {{ font-size: 48px; margin-bottom: 16px; }}
 div[data-testid="stPlotlyChart"] {{
     background: {BG2}; border-radius: 12px; border: 1px solid {BORDER};
     padding: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
@@ -144,6 +152,24 @@ def extraer_nombre_proyecto(proyecto):
     if len(partes) == 2: return partes[1].strip()
     return proyecto
 
+def get_cil_col(df):
+    for c in df.columns:
+        if "Cilindro" in c:
+            return c
+    return None
+
+def get_toma_col(df):
+    for c in df.columns:
+        if "Toma" in c:
+            return c
+    return None
+
+def get_loc_col(df):
+    for c in df.columns:
+        if "Localiz" in c:
+            return c
+    return None
+
 def cargar_datos(archivo):
     ext = archivo.name.split(".")[-1].lower()
     if ext in ["xlsx", "xls"]:
@@ -158,90 +184,92 @@ def cargar_datos(archivo):
     else:
         df = pd.read_csv(archivo)
 
-    df.columns      = [str(c).strip() for c in df.columns]
-    col_res         = [c for c in df.columns if "kg/cm" in c]
-    col_edad        = [c for c in df.columns if "Edad" in c and "dias" in c.lower().replace("í","i")]
-    col_nominal     = [c for c in df.columns if "nominal" in c.lower()]
+    df.columns  = [str(c).strip() for c in df.columns]
+    col_res     = [c for c in df.columns if "kg/cm" in c]
+    col_edad    = [c for c in df.columns if "Edad" in c and "dias" in c.lower().replace("í","i")]
+    col_nominal = [c for c in df.columns if "nominal" in c.lower()]
 
     for col in col_res + col_edad + col_nominal:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    for col in [c for c in df.columns if c in ["Toma", "Recepcion", "Rotura", "Recepción"]]:
+    for col in [c for c in df.columns if c in ["Toma","Recepcion","Rotura","Recepción"]]:
         df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    edad_col             = col_edad[0] if col_edad else "Edad (dias)"
-    df["Edad Estandar"]  = df[edad_col].apply(estandarizar_edad)
-    df["Nombre Proyecto"]= df["Proyecto"].apply(extraer_nombre_proyecto)
-    df["Clave Muestra"]  = df.apply(
-        lambda r: f"{r['Tipo de mezcla']}-{r['Cilindro N']}"
-        if pd.notna(r.get("Cilindro N")) else None, axis=1
-    )
+    edad_col              = col_edad[0] if col_edad else None
+    if edad_col:
+        df["Edad Estandar"] = df[edad_col].apply(estandarizar_edad)
+    df["Nombre Proyecto"] = df["Proyecto"].apply(extraer_nombre_proyecto)
+
+    cil_col = get_cil_col(df)
+    if cil_col:
+        # FIX 1: Clave Muestra usa el nombre real de la columna Cilindro
+        df["Clave Muestra"] = df.apply(
+            lambda r: f"{r['Tipo de mezcla']}-{r[cil_col]}"
+            if pd.notna(r.get(cil_col)) else None, axis=1
+        )
     return df
 
 def get_res_col(df):
     cols = [c for c in df.columns if "kg/cm" in c]
-    return cols[0] if cols else "Resistencia (kg/cm2)"
+    return cols[0] if cols else None
 
 def get_nominal_col(df):
     cols = [c for c in df.columns if "nominal" in c.lower()]
-    return cols[0] if cols else "Resistencia nominal (MPa)"
+    return cols[0] if cols else None
 
-def get_cil_col(df):
-    for c in df.columns:
-        if "Cilindro" in c:
-            return c
-    return "Cilindro N"
+# ─── PANTALLA DE CARGA (sin sidebar) ────────────────────────────────────────
+# Usamos session_state para manejar el archivo fuera del sidebar
+if "archivo_data" not in st.session_state:
+    st.session_state.archivo_data = None
 
-def get_toma_col(df):
-    for c in df.columns:
-        if "Toma" in c:
-            return c
-    return None
-
-# ─── SIDEBAR ────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("## 🏗️ Control de Resistencia")
-    st.markdown("---")
-    archivo = st.file_uploader(
-        "Cargar archivo Excel / CSV",
-        type=["xlsx", "xls", "csv"],
-        help="Debe contener los datos de ensayos de resistencia"
-    )
-    if archivo:
-        st.markdown("---")
-        st.caption("Usa los filtros en el dashboard para navegar.")
-
-# ─── BIENVENIDA ──────────────────────────────────────────────────────────────
-if not archivo:
+# Widget de carga centrado en la pantalla principal
+if st.session_state.archivo_data is None:
     st.markdown(f"""
     <div class="upload-area">
-        <h2 style="color:{ACCENT}; margin-bottom:8px;">🏗️ Control de Resistencia</h2>
-        <p style="color:{TEXT2}; font-size:15px;">
-            Carga tu archivo Excel con los datos de ensayos para comenzar
-        </p>
-        <p style="color:{TEXT2}; font-size:12px; margin-top:16px; opacity:0.7;">
-            Columnas requeridas: Proyecto · OT · Cilindro N° · Tipo de mezcla · Localizacion<br>
-            Toma · Edad (dias) · Resistencia (kg/cm2) · Resistencia nominal (MPa)
+        <div class="upload-icon">🏗️</div>
+        <h2 style="color:{ACCENT}; margin:0 0 8px 0; font-size:22px;">Control de Resistencia</h2>
+        <p style="color:{TEXT2}; font-size:14px; margin-bottom:24px;">
+            Arrastra tu archivo aquí o haz clic para buscarlo
         </p>
     </div>
     """, unsafe_allow_html=True)
+
+    uploaded = st.file_uploader(
+        "Seleccionar archivo",
+        type=["xlsx", "xls", "csv"],
+        label_visibility="collapsed",
+        help="Excel o CSV con los datos de ensayos"
+    )
+    if uploaded:
+        st.session_state.archivo_data = uploaded
+        st.rerun()
     st.stop()
 
-# ─── CARGA ───────────────────────────────────────────────────────────────────
+archivo = st.session_state.archivo_data
+
+# ─── CARGA Y FILTROS ─────────────────────────────────────────────────────────
 df_raw    = cargar_datos(archivo)
 cil_col   = get_cil_col(df_raw)
 toma_col  = get_toma_col(df_raw)
+loc_col   = get_loc_col(df_raw)
+res_col   = get_res_col(df_raw)
+nom_col   = get_nominal_col(df_raw)
 proyectos = sorted(df_raw["Nombre Proyecto"].dropna().unique())
 tipos     = sorted(df_raw["Tipo de mezcla"].dropna().unique())
 
-# ─── FILTROS INLINE ──────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Filtros</div>', unsafe_allow_html=True)
-fc1, fc2, fc3 = st.columns([3, 2, 2])
+fc1, fc2, fc3, fc4 = st.columns([3, 2, 1, 1])
 with fc1:
-    proyecto_sel = st.selectbox("Proyecto", proyectos)
+    proyecto_sel = st.selectbox("Proyecto", proyectos, label_visibility="visible")
 with fc2:
-    tipo_sel = st.selectbox("Tipo de mezcla", tipos)
+    tipo_sel = st.selectbox("Tipo de mezcla", tipos, label_visibility="visible")
 with fc3:
-    st.caption(f"**{len(df_raw)}** registros en el archivo")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.caption(f"**{len(df_raw)}** registros totales")
+with fc4:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🔄 Cambiar archivo"):
+        st.session_state.archivo_data = None
+        st.rerun()
 
 df = df_raw[
     (df_raw["Nombre Proyecto"] == proyecto_sel) &
@@ -250,14 +278,14 @@ df = df_raw[
 ].copy()
 
 # ─── ESTADÍSTICOS ────────────────────────────────────────────────────────────
-res_col    = get_res_col(df)
-nom_col    = get_nominal_col(df)
-fc_nominal = df[nom_col].dropna().iloc[0] * 10 if not df[nom_col].dropna().empty else 125
+fc_nominal = df[nom_col].dropna().iloc[0] * 10 if nom_col and not df[nom_col].dropna().empty else 125
+df28       = df[df["Edad Estandar"] == 28][res_col].dropna() if res_col else pd.Series()
+prom28     = df28.mean() if not df28.empty else 0
+ds         = df28.std(ddof=1) if len(df28) > 1 else 0
 
-df28   = df[df["Edad Estandar"] == 28][res_col].dropna()
-prom28 = df28.mean()
-ds     = df28.std(ddof=1)
-n      = df["Clave Muestra"].nunique()
+# FIX 1: N muestras — contar Cilindros únicos directamente
+n = df[cil_col].nunique() if cil_col else 0
+
 cv     = ds / prom28 if prom28 else 0
 fcr1   = fc_nominal + 1.34 * ds
 fcr2   = fc_nominal + 2.33 * ds - 35
@@ -303,21 +331,35 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─── GRÁFICA 1: CONTROL DE RESISTENCIA ──────────────────────────────────────
 st.markdown('<div class="section-title">Control de Resistencia</div>', unsafe_allow_html=True)
 
+# FIX 2: Usar índice posicional categórico para evitar espacios en saltos grandes
 todos_cilindros = sorted(df[cil_col].dropna().unique())
+etiquetas_x     = [str(int(c)) for c in todos_cilindros]   # etiquetas para mostrar
+indices_x       = list(range(len(todos_cilindros)))          # posiciones 0,1,2,3...
+cil_to_idx      = {c: i for i, c in enumerate(todos_cilindros)}
+
 fig1 = go.Figure()
 
 for edad in [14, 28, 56]:
-    df_edad = df[df["Edad Estandar"] == edad].copy()
+    df_edad  = df[df["Edad Estandar"] == edad].copy()
     if df_edad.empty:
         continue
-    prom_cil = df_edad.groupby(cil_col)[res_col].mean().reindex(todos_cilindros)
+    prom_cil = df_edad.groupby(cil_col)[res_col].mean()
 
+    y_vals      = []
+    x_pos       = []
     hover_texts = []
+
     for cil in todos_cilindros:
+        idx = cil_to_idx[cil]
         val = prom_cil.get(cil)
         if pd.isna(val):
+            # Insertar None para romper la línea sin espacios en eje X
+            y_vals.append(None)
+            x_pos.append(idx)
             hover_texts.append(f"<b>Cilindro {int(cil)}</b><br>{edad}d: Sin dato")
         else:
+            y_vals.append(val)
+            x_pos.append(idx)
             hover_texts.append(
                 f"<b>Cilindro {int(cil)}</b><br>"
                 f"Edad: {edad} dias<br>"
@@ -325,12 +367,13 @@ for edad in [14, 28, 56]:
                 f"% f'c: {val/fc_nominal*100:.1f}%"
             )
 
+    # FIX 2: line_shape="spline" con smoothing=0.5 para interpolacion suave cardinal
     fig1.add_trace(go.Scatter(
-        x=todos_cilindros,
-        y=prom_cil.values,
+        x=x_pos,
+        y=y_vals,
         mode="lines+markers",
         name=f"{edad} dias",
-        line=dict(color=COLORS[edad], width=2),
+        line=dict(color=COLORS[edad], width=2, shape="spline", smoothing=0.5),
         marker=dict(size=6, color=COLORS[edad]),
         connectgaps=False,
         hovertemplate="%{customdata}<extra></extra>",
@@ -338,14 +381,25 @@ for edad in [14, 28, 56]:
     ))
 
 prom_general = df[df["Edad Estandar"] == 28].groupby(cil_col)[res_col].mean().mean()
+
+# Líneas de referencia (en índices posicionales)
 fig1.add_hline(y=fc_nominal, line_dash="dot", line_color=HLINE_C,
                annotation_text=f"f'c: {fc_nominal:.0f}", annotation_font_color=HLINE_C)
 fig1.add_hline(y=prom_general, line_dash="dot", line_color=HLINE2_C,
                annotation_text=f"Prom. General: {prom_general:.2f}", annotation_font_color=HLINE2_C)
+
+# FIX 2: Eje X categórico — tickvals en posiciones, ticktext en etiquetas reales
 fig1.update_layout(**plotly_base(),
-    xaxis=dict(title="Cilindro N", gridcolor=GRID, zerolinecolor=ZERO_LINE),
+    xaxis=dict(
+        title="Cilindro N",
+        gridcolor=GRID, zerolinecolor=ZERO_LINE,
+        tickmode="array",
+        tickvals=indices_x,
+        ticktext=etiquetas_x,
+        tickangle=-45 if len(todos_cilindros) > 30 else 0,
+    ),
     yaxis=dict(title="Promedio Resistencia (kg/cm2)", gridcolor=GRID, zerolinecolor=ZERO_LINE),
-    height=380,
+    height=400,
     hovermode="x unified",
 )
 st.plotly_chart(fig1, use_container_width=True)
@@ -355,7 +409,7 @@ col_a, col_b = st.columns(2)
 
 with col_a:
     st.markdown('<div class="section-title">Distribucion Normal</div>', unsafe_allow_html=True)
-    mu = df28.mean()
+    mu = df28.mean() if not df28.empty else 0
     x_rel = np.linspace(-250, 250, 500)
     freq_counts, freq_bins = np.histogram(df28 - mu, bins=np.arange(-250, 260, 10))
     bin_centers = (freq_bins[:-1] + freq_bins[1:]) / 2
@@ -369,7 +423,7 @@ with col_a:
     ), secondary_y=False)
 
     for nombre, sigma in {
-        "Distribucion Real":   ds,
+        "Distribucion Real":   ds if ds > 0 else 1,
         "Aceptable (Ds=50)":   50,
         "Bueno (Ds=45)":       45,
         "Muy Bueno (Ds=37.5)": 37.5,
@@ -386,7 +440,7 @@ with col_a:
     fig2.update_layout(
         paper_bgcolor=PAPER_BG, plot_bgcolor=PLOT_BG,
         font=dict(family="DM Sans", color=TEXT, size=12),
-        margin=dict(t=50, b=80, l=50, r=20), height=380,
+        margin=dict(t=50, b=80, l=50, r=20), height=400,
         xaxis_title="x relativo (kg/cm2)",
         legend=dict(orientation="h", y=-0.38, font=dict(size=10, color=TEXT),
                     bgcolor=LEG_BG, bordercolor=BORDER, borderwidth=1),
@@ -401,7 +455,7 @@ with col_b:
 
     promedios_edad = []
     for edad in [14, 28, 56]:
-        vals = df[df["Edad Estandar"] == edad][res_col].dropna()
+        vals = df[df["Edad Estandar"] == edad][res_col].dropna() if res_col else pd.Series()
         if not vals.empty:
             promedios_edad.append({"Edad": edad, "Promedio": vals.mean()})
     df_evol = pd.DataFrame(promedios_edad)
@@ -413,7 +467,6 @@ with col_b:
             popt, _ = curve_fit(log_func, df_evol["Edad"], df_evol["Promedio"])
             x_curve = np.linspace(1, 70, 300)
             y_curve = log_func(x_curve, *popt)
-
             primer_val = df_evol["Promedio"].iloc[0]
             ultimo_val = df_evol["Promedio"].iloc[-1]
             rango_pct  = abs(ultimo_val - primer_val) / max(primer_val, ultimo_val) * 0.5
@@ -423,16 +476,13 @@ with col_b:
             fig3.add_trace(go.Scatter(
                 x=np.concatenate([x_curve, x_curve[::-1]]),
                 y=np.concatenate([y_upper, y_lower[::-1]]),
-                fill="toself",
-                fillcolor="rgba(74,144,217,0.12)",
+                fill="toself", fillcolor="rgba(74,144,217,0.12)",
                 line=dict(color="rgba(0,0,0,0)"),
-                name="Rango +-",
-                hoverinfo="skip",
+                name="Rango +-", hoverinfo="skip",
             ))
             eq_label = f"f(t) = {popt[0]:.2f}*ln(t) + {popt[1]:.2f}"
             fig3.add_trace(go.Scatter(
-                x=x_curve, y=y_curve, mode="lines",
-                name=eq_label,
+                x=x_curve, y=y_curve, mode="lines", name=eq_label,
                 line=dict(color=HLINE_C, width=2, dash="dash"),
                 hovertemplate="t=%{x:.0f}d<br>f(t)=%{y:.1f} kg/cm2<extra></extra>",
             ))
@@ -452,7 +502,7 @@ with col_b:
     fig3.add_hline(y=fc_nominal, line_dash="dot", line_color=HLINE_C,
                    annotation_text=f"f'c = {fc_nominal:.0f}",
                    annotation_font_color=HLINE_C)
-    fig3.update_layout(**plotly_base(), height=380)
+    fig3.update_layout(**plotly_base(), height=400)
     fig3.update_xaxes(tickvals=[14, 28, 56], title_text="Edad (dias)", gridcolor=GRID, zerolinecolor=ZERO_LINE)
     fig3.update_yaxes(title_text="Promedio Resistencia (kg/cm2)", gridcolor=GRID, zerolinecolor=ZERO_LINE)
     st.plotly_chart(fig3, use_container_width=True)
@@ -466,32 +516,32 @@ for cil in sorted(df[cil_col].dropna().unique()):
     try:
         df_cil = df[df[cil_col] == cil]
         row    = {"N": int(cil)}
-        loc    = df_cil["Localizacion"] if "Localizacion" in df_cil.columns else df_cil.get("Localización", pd.Series())
-        row["Localizacion"] = loc.dropna().iloc[0] if not loc.dropna().empty else ""
+        if loc_col:
+            locs = df_cil[loc_col].dropna()
+            row["Localizacion"] = locs.iloc[0] if not locs.empty else ""
         if toma_col and toma_col in df_cil.columns:
             fechas = df_cil[toma_col].dropna()
             fecha  = fechas.iloc[0] if not fechas.empty else None
             row["Fecha Toma"] = fecha.strftime("%Y-%m-%d") if fecha is not None and not pd.isna(fecha) else ""
-        else:
-            row["Fecha Toma"] = ""
         for edad in [14, 28, 56]:
             vals = df_cil[df_cil["Edad Estandar"] == edad][res_col].dropna()
-            row[f"Prom {edad}d"] = round(float(vals.mean()), 1) if not vals.empty else None
-        prom28_cil = row.get("Prom 28d")
+            row[f"Prom {edad}d (kg/cm2)"] = round(float(vals.mean()), 1) if not vals.empty else None
+        prom28_cil = row.get("Prom 28d (kg/cm2)")
         row["% f'c"] = f"{prom28_cil / fc_nominal * 100:.1f}%" if prom28_cil else None
         if prom28_cil:
             cumple_cil = prom28_cil > umbral_nsr
-            row["NSR-10"] = "Cumple" if cumple_cil else "No Cumple"
+            # FIX 4: Iconos de cumplimiento restaurados
+            row["NSR-10"] = "✅ Cumple" if cumple_cil else "❌ No Cumple"
             if not cumple_cil:
                 n_no_cumple += 1
         else:
-            row["NSR-10"] = "-"
+            row["NSR-10"] = "—"
         tabla_rows.append(row)
     except Exception:
         continue
 
 df_tabla    = pd.DataFrame(tabla_rows)
-total_con28 = sum(1 for r in tabla_rows if r.get("Prom 28d"))
+total_con28 = sum(1 for r in tabla_rows if r.get("Prom 28d (kg/cm2)"))
 pct_cumple  = (total_con28 - n_no_cumple) / total_con28 * 100 if total_con28 else 0
 
 m1, m2, m3 = st.columns(3)
