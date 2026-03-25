@@ -40,16 +40,17 @@ if is_dark:
     HLINE_C   = "#4a90d9"
     HLINE2_C  = "#e74c3c"
 else:
-    BG        = "#f7f9fc"
+    # Estética minimalista, plana y corporativa (fondos blancos limpios)
+    BG        = "#ffffff"
     BG2       = "#ffffff"
-    BORDER    = "#e0e6f0"
-    TEXT      = "#1a2035"
-    TEXT2     = "#8a9ab5"
+    BORDER    = "#d1d5db"
+    TEXT      = "#111827"
+    TEXT2     = "#6b7280"
     ACCENT    = "#2563eb"
-    PLOT_BG   = "#f7f9fc"
+    PLOT_BG   = "#ffffff"
     PAPER_BG  = "#ffffff"
-    GRID      = "#e8edf5"
-    ZERO_LINE = "#c7d2e8"
+    GRID      = "#f3f4f6"
+    ZERO_LINE = "#e5e7eb"
     LEG_BG    = "rgba(255,255,255,0.97)"
     HLINE_C   = "#2563eb"
     HLINE2_C  = "#dc2626"
@@ -60,13 +61,13 @@ st.markdown(f"""
 html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; }}
 .stApp {{ background-color: {BG}; color: {TEXT}; }}
 .metric-card {{
-    background: {BG2}; border: 1px solid {BORDER}; border-radius: 12px;
+    background: {BG2}; border: 1px solid {BORDER}; border-radius: 4px;
     padding: 16px 20px; text-align: center;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.2s;
+    box-shadow: none;
     height: 130px; display: flex; flex-direction: column; justify-content: center;
 }}
-.metric-card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }}
+.metric-card:hover {{ border-color: {ACCENT}; }}
 .metric-label {{
     font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
     text-transform: uppercase; color: {TEXT2}; margin-bottom: 6px;
@@ -91,7 +92,7 @@ html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; }}
     font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
     text-transform: uppercase; color: {ACCENT};
     margin: 20px 0 10px 0; padding-bottom: 6px;
-    border-bottom: 2px solid {BORDER};
+    border-bottom: 1px solid {BORDER};
 }}
 .upload-fullscreen {{
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -99,18 +100,18 @@ html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; }}
     align-items: center; justify-content: center; z-index: 9999;
 }}
 .upload-box {{
-    background: {BG2}; border: 2px dashed {BORDER};
-    border-radius: 20px; padding: 56px 64px; text-align: center;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.08); max-width: 520px; width: 90%;
+    background: {BG2}; border: 1px dashed {BORDER};
+    border-radius: 4px; padding: 56px 64px; text-align: center;
+    box-shadow: none; max-width: 520px; width: 90%;
     transition: border-color 0.2s;
 }}
 .upload-box:hover {{ border-color: {ACCENT}; }}
 .upload-icon {{ font-size: 56px; margin-bottom: 20px; line-height: 1; }}
 div[data-testid="stPlotlyChart"] {{
-    background: {BG2}; border-radius: 12px; border: 1px solid {BORDER};
-    padding: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    background: {BG2}; border-radius: 4px; border: 1px solid {BORDER};
+    padding: 4px; box-shadow: none;
 }}
-.stDataFrame {{ border-radius: 8px; overflow: hidden; }}
+.stDataFrame {{ border-radius: 4px; overflow: hidden; border: 1px solid {BORDER}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -209,7 +210,6 @@ def cargar_datos(archivo):
 
     cil_col = get_cil_col(df)
     if cil_col:
-        # FIX 1: Clave Muestra usa el nombre real de la columna Cilindro
         df["Clave Muestra"] = df.apply(
             lambda r: f"{r['Tipo de mezcla']}-{r[cil_col]}"
             if pd.notna(r.get(cil_col)) else None, axis=1
@@ -224,23 +224,18 @@ def get_nominal_col(df):
     cols = [c for c in df.columns if "nominal" in c.lower()]
     return cols[0] if cols else None
 
-# ─── PANTALLA DE CARGA (sin sidebar) ────────────────────────────────────────
-# Usamos session_state para manejar el archivo fuera del sidebar
+# ─── PANTALLA DE CARGA ────────────────────────────────────────
 if "archivo_data" not in st.session_state:
     st.session_state.archivo_data = None
 
-# Widget de carga centrado en la pantalla principal
 if st.session_state.archivo_data is None:
-    # Centrar con columnas
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown(f"""
-        <div style="background:{BG2}; border:2px dashed {BORDER}; border-radius:20px;
-                    padding:48px 40px; text-align:center;
-                    box-shadow:0 8px 32px rgba(0,0,0,0.08);">
+        <div class="upload-box" style="margin: 0 auto;">
             <div style="font-size:52px; margin-bottom:16px;">🏗️</div>
-            <h2 style="color:{ACCENT}; margin:0 0 10px 0; font-size:26px; font-weight:700;">
+            <h2 style="color:{TEXT}; margin:0 0 10px 0; font-size:24px; font-weight:600;">
                 Control de Resistencia
             </h2>
             <p style="color:{TEXT2}; font-size:14px; margin:0 0 8px 0;">
@@ -256,8 +251,7 @@ if st.session_state.archivo_data is None:
         uploaded = st.file_uploader(
             "📂 Seleccionar archivo",
             type=["xlsx", "xls", "csv"],
-            label_visibility="visible",
-            help="Excel o CSV con los datos de ensayos"
+            label_visibility="visible"
         )
         if uploaded:
             st.session_state.archivo_data = uploaded
@@ -303,7 +297,6 @@ df28       = df[df["Edad Estandar"] == 28][res_col].dropna() if res_col else pd.
 prom28     = df28.mean() if not df28.empty else 0
 ds         = df28.std(ddof=1) if len(df28) > 1 else 0
 
-# FIX 1: N muestras — contar Cilindros únicos directamente
 n = df[cil_col].nunique() if cil_col else 0
 
 cv     = ds / prom28 if prom28 else 0
@@ -351,10 +344,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─── GRÁFICA 1: CONTROL DE RESISTENCIA ──────────────────────────────────────
 st.markdown('<div class="section-title">Control de Resistencia</div>', unsafe_allow_html=True)
 
-# FIX 2: Usar índice posicional categórico para evitar espacios en saltos grandes
 todos_cilindros = sorted(df[cil_col].dropna().unique())
-etiquetas_x     = [str(int(c)) for c in todos_cilindros]   # etiquetas para mostrar
-indices_x       = list(range(len(todos_cilindros)))          # posiciones 0,1,2,3...
+etiquetas_x     = [str(int(c)) for c in todos_cilindros]
+indices_x       = list(range(len(todos_cilindros)))
 cil_to_idx      = {c: i for i, c in enumerate(todos_cilindros)}
 
 fig1 = go.Figure()
@@ -373,7 +365,6 @@ for edad in [14, 28, 56]:
         idx = cil_to_idx[cil]
         val = prom_cil.get(cil)
         if pd.isna(val):
-            # Insertar None para romper la línea sin espacios en eje X
             y_vals.append(None)
             x_pos.append(idx)
             hover_texts.append(f"<b>Cilindro {int(cil)}</b><br>{edad}d: Sin dato")
@@ -387,7 +378,6 @@ for edad in [14, 28, 56]:
                 f"% f'c: {val/fc_nominal*100:.1f}%"
             )
 
-    # FIX 2: line_shape="spline" con smoothing=0.5 para interpolacion suave cardinal
     fig1.add_trace(go.Scatter(
         x=x_pos,
         y=y_vals,
@@ -402,7 +392,6 @@ for edad in [14, 28, 56]:
 
 prom_general = df[df["Edad Estandar"] == 28].groupby(cil_col)[res_col].mean().mean()
 
-# Líneas de referencia: la de mayor valor lleva etiqueta top, la menor bottom
 _fc_pos   = "right top"    if fc_nominal  >= prom_general else "right bottom"
 _prom_pos = "right bottom" if fc_nominal  >= prom_general else "right top"
 
@@ -419,7 +408,6 @@ fig1.add_hline(
     annotation_position=_prom_pos,
 )
 
-# Intervalos inteligentes: mostrar ticks cada N segun cantidad
 n_cil = len(todos_cilindros)
 if n_cil <= 40:    step = 1
 elif n_cil <= 80:  step = 2
@@ -519,14 +507,12 @@ with col_b:
                 line=dict(color="rgba(0,0,0,0)"),
                 name="Rango +-", hoverinfo="skip",
             ))
-            eq_label = f"f(t) = {popt[0]:.2f}·ln(t) + {popt[1]:.2f}"
             fig3.add_trace(go.Scatter(
                 x=x_curve, y=y_curve, mode="lines", name="Regresion log",
                 line=dict(color=HLINE_C, width=2, dash="dash"),
                 hovertemplate="t=%{x:.0f}d<br>f(t)=%{y:.1f} kg/cm2<extra></extra>",
             ))
-            # Ecuacion en esquina inferior derecha, sin recuadro, color de la linea
-            # Plotly no soporta LaTeX nativo en anotaciones — usamos unicode para estetica
+            
             eq_display = (
                 f"<i>f</i>(t) = {popt[0]:.2f} · ln(t)"
                 f" {'+ ' if popt[1] >= 0 else '− '}{abs(popt[1]):.2f}"
@@ -537,8 +523,6 @@ with col_b:
                 text=eq_display,
                 showarrow=False,
                 bgcolor="rgba(0,0,0,0)",
-                bordercolor="rgba(0,0,0,0)",
-                borderwidth=0,
                 font=dict(size=12, color=HLINE_C, family="DM Mono"),
                 xanchor="right",
                 yanchor="bottom",
@@ -587,7 +571,6 @@ for cil in sorted(df[cil_col].dropna().unique()):
         row["% f'c"] = f"{prom28_cil / fc_nominal * 100:.1f}%" if prom28_cil else None
         if prom28_cil:
             cumple_cil = prom28_cil > umbral_nsr
-            # FIX 4: Iconos de cumplimiento restaurados
             row["NSR-10"] = "✅ Cumple" if cumple_cil else "❌ No Cumple"
             if not cumple_cil:
                 n_no_cumple += 1
