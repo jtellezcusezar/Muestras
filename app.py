@@ -299,12 +299,20 @@ df = df_raw[
 
 # ─── ESTADÍSTICOS ────────────────────────────────────────────────────────────
 fc_nominal = df[nom_col].dropna().iloc[0] * 10 if nom_col and not df[nom_col].dropna().empty else 125
-df28       = df[df["Edad Estandar"] == 28][res_col].dropna() if res_col else pd.Series()
-prom28     = df28.mean() if not df28.empty else 0
-ds         = df28.std(ddof=1) if len(df28) > 1 else 0
 
-# FIX 1: N muestras — contar Cilindros únicos directamente
-n = df[cil_col].nunique() if cil_col else 0
+# Agrupar cilindros en ensayos: promediar resistencia por Cilindro N° a cada edad
+# Cada Cilindro N° único = 1 ensayo; se repite hasta 3 veces (14d, 28d, 56d)
+df28_ensayos = (
+    df[df["Edad Estandar"] == 28].groupby(cil_col)[res_col].mean().dropna()
+    if res_col and cil_col else pd.Series()
+)
+
+prom28     = df28_ensayos.mean() if not df28_ensayos.empty else 0
+ds         = df28_ensayos.std(ddof=1) if len(df28_ensayos) > 1 else 0
+
+# N ensayos = cilindros únicos con dato a 28 días
+n_ensayos     = len(df28_ensayos)
+n_cilindros   = len(df[df["Edad Estandar"] == 28][res_col].dropna()) if res_col else 0
 
 cv     = ds / prom28 if prom28 else 0
 fcr1   = fc_nominal + 1.34 * ds
@@ -338,7 +346,7 @@ card(c1, "f'c Nominal",     f"{fc_nominal:.0f}",  "kg/cm2")
 card(c2, "Promedio 28d",    f"{prom28:.1f}",       "kg/cm2")
 card(c3, "Desv. Estandar",  f"{ds:.1f}",           cal_ds, cls_ds)
 card(c4, "Coef. Variacion", f"{cv*100:.1f}%",      cal_cv, cls_cv)
-card(c5, "N Muestras",      str(n))
+card(c5, "N Ensayos",       str(n_ensayos),        f"{n_cilindros} cilindros")
 card(c6, "f'cr Diseno",     f"{fcr:.1f}",          "kg/cm2")
 card(c7, "NSR-10 Global",
     "Cumple" if cumple_global else "No Cumple",
@@ -448,9 +456,9 @@ col_a, col_b = st.columns(2)
 
 with col_a:
     st.markdown('<div class="section-title">Distribucion Normal</div>', unsafe_allow_html=True)
-    mu = df28.mean() if not df28.empty else 0
+    mu = df28_ensayos.mean() if not df28_ensayos.empty else 0
     x_rel = np.linspace(-250, 250, 500)
-    freq_counts, freq_bins = np.histogram(df28 - mu, bins=np.arange(-250, 260, 10))
+    freq_counts, freq_bins = np.histogram(df28_ensayos - mu, bins=np.arange(-250, 260, 10))
     bin_centers = (freq_bins[:-1] + freq_bins[1:]) / 2
 
     fig2 = make_subplots(specs=[[{"secondary_y": True}]])
@@ -494,7 +502,7 @@ with col_b:
 
     promedios_edad = []
     for edad in [14, 28, 56]:
-        vals = df[df["Edad Estandar"] == edad][res_col].dropna() if res_col else pd.Series()
+        vals = df[df["Edad Estandar"] == edad].groupby(cil_col)[res_col].mean().dropna() if res_col and cil_col else pd.Series()
         if not vals.empty:
             promedios_edad.append({"Edad": edad, "Promedio": vals.mean()})
     df_evol = pd.DataFrame(promedios_edad)
