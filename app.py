@@ -609,10 +609,10 @@ with col_a:
             x=mu,
             line_width=2,
             line_dash="dash",
-            line_color="#00c853",  # puedes cambiar el color si quieres
+            line_color=HLINE_C,  # puedes cambiar el color si quieres
             annotation_text=f"Media μ = {mu:.1f}",
             annotation_position="top",
-            annotation_font_color="#00c853"
+            annotation_font_color=HLINE_C
         )
 
     fig2.update_layout(
